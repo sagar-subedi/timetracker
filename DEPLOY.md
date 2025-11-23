@@ -61,6 +61,33 @@ To run the application in production mode:
 The application will be available at `http://localhost:3001`. The backend will serve the frontend static files, so you can access the full application at this URL.
 
 ## Troubleshooting
+## Process Management with PM2
+
+For production, it is recommended to use PM2 to manage the application process.
+
+1.  **Install PM2** (if not already installed globally):
+    ```bash
+    npm install pm2 -g
+    # OR install locally in the project
+    cd backend
+    npm install pm2 --save-dev
+    ```
+
+2.  **Start with PM2**:
+    Navigate to the backend directory and run:
+    ```bash
+    npx pm2 start ecosystem.config.cjs
+    ```
+
+3.  **Monitor**:
+    ```bash
+    npx pm2 monit
+    ```
+
+4.  **Logs**:
+    ```bash
+    npx pm2 logs
+    ```
 
 -   **Database Connection**: Ensure your MongoDB instance is running and the `DATABASE_URL` is correct.
 -   **Static Files**: If the frontend doesn't load, check that `frontend/dist` exists and contains `index.html`.
