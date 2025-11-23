@@ -1,13 +1,18 @@
+import { useMemo } from 'react';
 import { TimeEntryCard } from '@/components/TimeEntryCard';
 import { useEntries } from '@/lib/queries';
 
 export default function History() {
-    // Get last 30 days
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+    // Get last 30 days, memoized to prevent infinite refetch loops
+    const startDate = useMemo(() => {
+        const date = new Date();
+        date.setDate(date.getDate() - 30);
+        date.setHours(0, 0, 0, 0);
+        return date.toISOString();
+    }, []);
 
     const { data: entries, isLoading } = useEntries({
-        startDate: startDate.toISOString()
+        startDate
     });
 
     return (
