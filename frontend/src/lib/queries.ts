@@ -106,3 +106,29 @@ export function useStats() {
         },
     });
 }
+
+export function useDistribution(days: number = 30) {
+    return useQuery({
+        queryKey: ['distribution', days],
+        queryFn: async () => {
+            const { data } = await api.get<{
+                categoryId: string;
+                categoryName: string;
+                color: string;
+                duration: number;
+                percentage: number;
+            }[]>('/analytics/distribution', { params: { days } });
+            return data;
+        },
+    });
+}
+
+export function useTrends(days: number = 30) {
+    return useQuery({
+        queryKey: ['trends', days],
+        queryFn: async () => {
+            const { data } = await api.get<{ date: string; duration: number }[]>('/analytics/trends', { params: { days } });
+            return data;
+        },
+    });
+}
