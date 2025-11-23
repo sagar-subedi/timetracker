@@ -70,11 +70,13 @@ export function useCreateEntry() {
 }
 
 // Analytics
-export function useHeatmap() {
+export function useHeatmap(categoryId?: string) {
     return useQuery({
-        queryKey: ['heatmap'],
+        queryKey: ['heatmap', categoryId],
         queryFn: async () => {
-            const { data } = await api.get<{ date: string; duration: number; level: number }[]>('/analytics/heatmap');
+            const { data } = await api.get<{ date: string; duration: number; level: number }[]>('/analytics/heatmap', {
+                params: { categoryId }
+            });
             return data;
         },
     });

@@ -10,19 +10,26 @@ router.use(authMiddleware);
 // Get heatmap data (last 365 days)
 router.get('/heatmap', async (req: AuthRequest, res) => {
     try {
+        const { categoryId } = req.query;
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - 365);
 
-        const entries = await prisma.timeEntry.findMany({
-            where: {
-                userId: req.userId,
-                startTime: {
-                    gte: startDate,
-                    lte: endDate,
-                },
-                endTime: { not: null },
+        const where: any = {
+            userId: req.userId,
+            startTime: {
+                gte: startDate,
+                lte: endDate,
             },
+            endTime: { not: null },
+        };
+
+        if (categoryId) {
+            where.categoryId = categoryId;
+        }
+
+        const entries = await prisma.timeEntry.findMany({
+            where,
             select: {
                 startTime: true,
                 duration: true,
