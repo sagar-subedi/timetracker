@@ -101,6 +101,7 @@ export function useStats() {
                 weekTotal: number;
                 monthTotal: number;
                 mostProductiveDay: { date: string; duration: number };
+                streak: number;
             }>('/analytics/stats');
             return data;
         },

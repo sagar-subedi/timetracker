@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { useStats } from '@/lib/queries';
-import { Clock, Calendar, TrendingUp } from 'lucide-react';
+import { Clock, Calendar, TrendingUp, Flame } from 'lucide-react';
 
 export function StatsCard() {
     const { data: stats, isLoading } = useStats();
@@ -33,11 +33,11 @@ export function StatsCard() {
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="glass hover:shadow-lg transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
-                        Today's Total
+                        Today
                     </CardTitle>
                     <Clock className="w-4 h-4 text-primary" />
                 </CardHeader>
@@ -45,16 +45,13 @@ export function StatsCard() {
                     <div className="text-2xl font-bold text-gradient">
                         {formatDuration(stats?.todayTotal || 0)}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Tracked today
-                    </p>
                 </CardContent>
             </Card>
 
             <Card className="glass hover:shadow-lg transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
-                        This Week
+                        Week
                     </CardTitle>
                     <Calendar className="w-4 h-4 text-primary" />
                 </CardHeader>
@@ -62,16 +59,13 @@ export function StatsCard() {
                     <div className="text-2xl font-bold text-gradient">
                         {formatDuration(stats?.weekTotal || 0)}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Since Monday
-                    </p>
                 </CardContent>
             </Card>
 
             <Card className="glass hover:shadow-lg transition-all">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
-                        This Month
+                        Month
                     </CardTitle>
                     <TrendingUp className="w-4 h-4 text-primary" />
                 </CardHeader>
@@ -79,9 +73,20 @@ export function StatsCard() {
                     <div className="text-2xl font-bold text-gradient">
                         {formatDuration(stats?.monthTotal || 0)}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Total for {new Date().toLocaleString('default', { month: 'long' })}
-                    </p>
+                </CardContent>
+            </Card>
+
+            <Card className="glass hover:shadow-lg transition-all">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Streak
+                    </CardTitle>
+                    <Flame className="w-4 h-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-gradient">
+                        {stats?.streak || 0} <span className="text-sm font-normal text-muted-foreground">days</span>
+                    </div>
                 </CardContent>
             </Card>
         </div>

@@ -113,11 +113,55 @@ router.get('/stats', async (req: AuthRequest, res) => {
             { date: '', duration: 0 }
         );
 
+        // Calculate streak
+        const recentEntries = await prisma.timeEntry.findMany({
+            where: {
+                userId: req.userId,
+                endTime: { not: null },
+            },
+            select: { startTime: true },
+            orderBy: { startTime: 'desc' },
+            take: 100, // Look back enough entries to likely cover a long streak
+        });
+
+        let streak = 0;
+        const uniqueDates = new Set<string>();
+
+        // Get all unique dates with activity
+        recentEntries.forEach(entry => {
+            uniqueDates.add(entry.startTime.toISOString().split('T')[0]);
+        });
+
+        const todayStr = now.toISOString().split('T')[0];
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        // Check if streak is active (has entry today or yesterday)
+        let currentStreakDate: string | null = uniqueDates.has(todayStr) ? todayStr : (uniqueDates.has(yesterdayStr) ? yesterdayStr : null);
+
+        if (currentStreakDate) {
+            streak = 1;
+            let checkDate = new Date(currentStreakDate);
+
+            while (true) {
+                checkDate.setDate(checkDate.getDate() - 1);
+                const prevDateStr = checkDate.toISOString().split('T')[0];
+
+                if (uniqueDates.has(prevDateStr)) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+        }
+
         res.json({
             todayTotal,
             weekTotal,
             monthTotal,
             mostProductiveDay,
+            streak,
         });
     } catch (error) {
         console.error('Get stats error:', error);
