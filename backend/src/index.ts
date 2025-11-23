@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
@@ -32,6 +33,16 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     console.error('Error:', err);
     res.status(500).json({ error: 'Internal server error' });
 });
+
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+    const __dirname = path.resolve();
+    app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.resolve(__dirname, '../frontend/dist', 'index.html'));
+    });
+}
 
 // Start server
 app.listen(PORT, () => {
