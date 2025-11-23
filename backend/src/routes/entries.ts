@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
+import { Prisma } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
@@ -36,16 +37,17 @@ router.get('/', async (req: AuthRequest, res) => {
     try {
         const { startDate, endDate, categoryId } = req.query;
 
-        const where: any = { userId: req.userId };
+        const where: Prisma.TimeEntryWhereInput = { userId: req.userId };
 
         if (startDate || endDate) {
-            where.startTime = {};
-            if (startDate) where.startTime.gte = new Date(startDate as string);
-            if (endDate) where.startTime.lte = new Date(endDate as string);
+            const dateFilter: Prisma.DateTimeFilter = {};
+            if (startDate) dateFilter.gte = new Date(startDate as string);
+            if (endDate) dateFilter.lte = new Date(endDate as string);
+            where.startTime = dateFilter;
         }
 
         if (categoryId) {
-            where.categoryId = categoryId;
+            where.categoryId = categoryId as string;
         }
 
         const entries = await prisma.timeEntry.findMany({
@@ -133,8 +135,8 @@ router.put('/:id', async (req: AuthRequest, res) => {
             }
         }
 
-        const updateData: any = {};
-        if (data.categoryId) updateData.categoryId = data.categoryId;
+        const updateData: Prisma.TimeEntryUpdateInput = {};
+        if (data.categoryId) updateData.category = { connect: { id: data.categoryId } };
         if (data.startTime) updateData.startTime = new Date(data.startTime);
         if (data.endTime) updateData.endTime = new Date(data.endTime);
         if (data.notes !== undefined) updateData.notes = data.notes;

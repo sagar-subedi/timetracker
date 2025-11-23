@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import prisma from '../utils/prisma.js';
+import { Prisma } from '@prisma/client';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
@@ -15,7 +16,7 @@ router.get('/heatmap', async (req: AuthRequest, res) => {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - 365);
 
-        const where: any = {
+        const where: Prisma.TimeEntryWhereInput = {
             userId: req.userId,
             startTime: {
                 gte: startDate,
@@ -25,7 +26,7 @@ router.get('/heatmap', async (req: AuthRequest, res) => {
         };
 
         if (categoryId) {
-            where.categoryId = categoryId;
+            where.categoryId = categoryId as string;
         }
 
         const entries = await prisma.timeEntry.findMany({
