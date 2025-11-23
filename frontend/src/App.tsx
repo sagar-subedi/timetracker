@@ -1,6 +1,11 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { Layout } from './components/ui/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Timer from './pages/Timer';
+import Analytics from './pages/Analytics';
+import History from './pages/History';
 
 function App() {
   const { user, loading } = useAuth();
@@ -20,7 +25,17 @@ function App() {
     return <Login />;
   }
 
-  return <Dashboard />;
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/timer" element={<Timer />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/history" element={<History />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Layout>
+  );
 }
 
 export default App;

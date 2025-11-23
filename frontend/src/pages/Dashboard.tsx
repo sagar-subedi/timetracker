@@ -1,6 +1,9 @@
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { LiveTimer } from '../components/LiveTimer';
+import { Heatmap } from '../components/Heatmap';
+import { StatsCard } from '../components/StatsCard';
 
 export default function Dashboard() {
     const { user, logout } = useAuth();
@@ -18,33 +21,16 @@ export default function Dashboard() {
                     </Button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="glass">
-                        <CardHeader>
-                            <CardTitle className="text-lg">Today's Total</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold text-primary">0h 0m</p>
-                        </CardContent>
-                    </Card>
+                <div className="mb-8">
+                    <LiveTimer />
+                </div>
 
-                    <Card className="glass">
-                        <CardHeader>
-                            <CardTitle className="text-lg">This Week</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold text-primary">0h 0m</p>
-                        </CardContent>
-                    </Card>
+                <div className="mb-8">
+                    <Heatmap />
+                </div>
 
-                    <Card className="glass">
-                        <CardHeader>
-                            <CardTitle className="text-lg">This Month</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold text-primary">0h 0m</p>
-                        </CardContent>
-                    </Card>
+                <div className="mb-8">
+                    <StatsCard />
                 </div>
 
                 <div className="mt-8">

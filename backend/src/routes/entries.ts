@@ -207,7 +207,10 @@ router.post('/start', async (req: AuthRequest, res) => {
         const activeTimer = await prisma.timeEntry.findFirst({
             where: {
                 userId: req.userId,
-                endTime: null,
+                OR: [
+                    { endTime: null },
+                    { endTime: { isSet: false } }
+                ]
             },
         });
 
@@ -246,7 +249,10 @@ router.post('/stop', async (req: AuthRequest, res) => {
         const activeTimer = await prisma.timeEntry.findFirst({
             where: {
                 userId: req.userId,
-                endTime: null,
+                OR: [
+                    { endTime: null },
+                    { endTime: { isSet: false } }
+                ]
             },
             include: {
                 category: true,
@@ -288,11 +294,15 @@ router.get('/active', async (req: AuthRequest, res) => {
         const activeTimer = await prisma.timeEntry.findFirst({
             where: {
                 userId: req.userId,
-                endTime: null,
+                OR: [
+                    { endTime: null },
+                    { endTime: { isSet: false } }
+                ]
             },
             include: {
                 category: true,
             },
+            orderBy: { startTime: 'desc' }
         });
 
         res.json(activeTimer);
