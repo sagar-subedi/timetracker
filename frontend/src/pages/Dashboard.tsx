@@ -7,8 +7,8 @@ import { Heatmap } from '../components/Heatmap';
 import { StatsCard } from '../components/StatsCard';
 
 import { format } from 'date-fns';
-import { CheckCircle, Circle, Trophy, Plus, Flag, Trash2 } from 'lucide-react';
-import { useTasks, useDayRating, useCreateTask, useToggleTask, useDeleteTask } from '../lib/queries';
+import { CheckCircle, Circle, Trophy, Plus, Flag, Trash2, Folder } from 'lucide-react';
+import { useTasks, useDayRating, useCreateTask, useToggleTask, useDeleteTask, useProjects } from '../lib/queries';
 import { useState } from 'react';
 import { cn } from '../lib/utils';
 
@@ -18,12 +18,14 @@ export default function Dashboard() {
 
     const { data: tasks } = useTasks({ scheduledDate: todayStr });
     const { data: rating } = useDayRating(todayStr);
+    const { data: projects } = useProjects();
     const createTask = useCreateTask();
     const toggleTask = useToggleTask();
     const deleteTask = useDeleteTask();
 
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskPriority, setNewTaskPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
+    const [newTaskProjectId, setNewTaskProjectId] = useState<string>('');
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
     const togglePriority = () => {
@@ -39,6 +41,7 @@ export default function Dashboard() {
             priority: newTaskPriority,
             scheduledDate: `${todayStr}T00:00:00.000Z`, // Force UTC midnight to match backend query
             estimatedTime: 30, // Default 30 mins
+            projectId: newTaskProjectId || undefined,
         });
         setNewTaskTitle('');
         setNewTaskPriority('MEDIUM'); // Reset priority
@@ -103,32 +106,46 @@ export default function Dashboard() {
                             </CardHeader>
                             <CardContent className="flex-1 flex flex-col gap-4">
                                 {/* Add Task Input */}
-                                <div className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <input
-                                            type="text"
-                                            placeholder="Add a new task..."
-                                            className="w-full h-10 pl-3 pr-12 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                            value={newTaskTitle}
-                                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                                        />
-                                        <button
-                                            onClick={togglePriority}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-accent rounded-full transition-colors"
-                                            title={`Priority: ${newTaskPriority}`}
-                                        >
-                                            <Flag className={cn(
-                                                "w-4 h-4 fill-current",
-                                                newTaskPriority === 'HIGH' && "text-red-500",
-                                                newTaskPriority === 'MEDIUM' && "text-yellow-500",
-                                                newTaskPriority === 'LOW' && "text-blue-500"
-                                            )} />
-                                        </button>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <input
+                                                type="text"
+                                                placeholder="Add a new task..."
+                                                className="w-full h-10 pl-3 pr-12 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                value={newTaskTitle}
+                                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                                            />
+                                            <button
+                                                onClick={togglePriority}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-accent rounded-full transition-colors"
+                                                title={`Priority: ${newTaskPriority}`}
+                                            >
+                                                <Flag className={cn(
+                                                    "w-4 h-4 fill-current",
+                                                    newTaskPriority === 'HIGH' && "text-red-500",
+                                                    newTaskPriority === 'MEDIUM' && "text-yellow-500",
+                                                    newTaskPriority === 'LOW' && "text-blue-500"
+                                                )} />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <Button size="icon" onClick={handleAddTask} disabled={!newTaskTitle.trim() || createTask.isPending}>
-                                        <Plus className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <select
+                                            className="flex-1 h-8 text-xs rounded-md border border-input bg-background px-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            value={newTaskProjectId}
+                                            onChange={(e) => setNewTaskProjectId(e.target.value)}
+                                        >
+                                            <option value="">No Project</option>
+                                            {projects?.map((p: any) => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                        <Button size="sm" onClick={handleAddTask} disabled={!newTaskTitle.trim() || createTask.isPending}>
+                                            <Plus className="w-4 h-4 mr-1" /> Add
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 {/* Task List */}
@@ -159,6 +176,14 @@ export default function Dashboard() {
                                                 )}>
                                                     {task.title}
                                                 </span>
+                                                {task.project && (
+                                                    <span
+                                                        className="text-[10px] px-1.5 py-0.5 rounded-full border opacity-70"
+                                                        style={{ borderColor: task.project.color, color: task.project.color }}
+                                                    >
+                                                        {task.project.name}
+                                                    </span>
+                                                )}
                                                 <Flag className={cn(
                                                     "w-3 h-3 fill-current",
                                                     task.priority === 'HIGH' && "text-red-500",

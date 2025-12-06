@@ -15,6 +15,7 @@ const createTaskSchema = z.object({
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
     estimatedTime: z.number().min(0).default(0),
     scheduledDate: z.string().datetime().optional(),
+    projectId: z.string().optional(),
 });
 
 const updateTaskSchema = z.object({
@@ -24,6 +25,7 @@ const updateTaskSchema = z.object({
     estimatedTime: z.number().min(0).optional(),
     isCompleted: z.boolean().optional(),
     scheduledDate: z.string().datetime().nullable().optional(),
+    projectId: z.string().nullable().optional(),
 });
 
 // Get all tasks
@@ -50,6 +52,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
         const tasks = await prisma.task.findMany({
             where,
+            include: { project: true },
             orderBy: [
                 { isCompleted: 'asc' },
                 { createdAt: 'desc' }
@@ -97,6 +100,7 @@ router.post('/', async (req: AuthRequest, res) => {
                 priority: data.priority,
                 estimatedTime: data.estimatedTime,
                 scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : null,
+                projectId: data.projectId,
             }
         });
 

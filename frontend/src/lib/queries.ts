@@ -146,6 +146,42 @@ export function useTrends(days: number = 30) {
     });
 }
 
+// Projects
+export function useProjects() {
+    return useQuery({
+        queryKey: ['projects'],
+        queryFn: async () => {
+            const { data } = await api.get<any[]>('/projects'); // Type as any[] for now or import Project
+            return data;
+        },
+    });
+}
+
+export function useCreateProject() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: { name: string; description?: string; color?: string }) => {
+            const { data: response } = await api.post('/projects', data);
+            return response;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['projects'] });
+        },
+    });
+}
+
+export function useDeleteProject() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            await api.delete(`/projects/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['projects'] });
+        },
+    });
+}
+
 // Tasks
 export function useTasks(params?: { scheduledDate?: string; isCompleted?: boolean }) {
     return useQuery({
@@ -160,9 +196,9 @@ export function useTasks(params?: { scheduledDate?: string; isCompleted?: boolea
 export function useCreateTask() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (task: Partial<Task>) => {
-            const { data } = await api.post<Task>('/tasks', task);
-            return data;
+        mutationFn: async (data: { title: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH'; estimatedTime?: number; scheduledDate?: string; projectId?: string }) => {
+            const { data: response } = await api.post<Task>('/tasks', data);
+            return response;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -174,23 +210,38 @@ export function useCreateTask() {
 export function useToggleTask() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, isCompleted }: { id: string; isCompleted: boolean }) => {
-            const { data } = await api.put<Task>(`/tasks/${id}`, { isCompleted });
-            return data;
+        mutationFn: async (data: { id: string; isCompleted: boolean }) => {
+            const { data: response } = await api.put<Task>(`/tasks/${data.id}`, { isCompleted: data.isCompleted });
+            return response;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
             queryClient.invalidateQueries({ queryKey: ['dayRating'] });
-            queryClient.invalidateQueries({ queryKey: ['activeTimer'] }); // Update active timer tasks
         },
     });
 }
 
-export function useDayRating(date?: string) {
+export function useDeleteTask() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            await api.delete(`/tasks/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['dayRating'] });
+            queryClient.invalidateQueries({ queryKey: ['activeTimer'] });
+        },
+    });
+}
+
+export function useDayRating(date: string) {
     return useQuery({
         queryKey: ['dayRating', date],
         queryFn: async () => {
-            const { data } = await api.get<DayRating>('/analytics/rating', { params: { date } });
+            const { data } = await api.get<DayRating>('/analytics/day-rating', {
+                params: { date }
+            });
             return data;
         },
     });
@@ -206,20 +257,6 @@ export function useDeleteEntry() {
             queryClient.invalidateQueries({ queryKey: ['entries'] });
             queryClient.invalidateQueries({ queryKey: ['heatmap'] });
             queryClient.invalidateQueries({ queryKey: ['stats'] });
-        },
-    });
-}
-
-export function useDeleteTask() {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: async (id: string) => {
-            await api.delete(`/tasks/${id}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['dayRating'] });
-            queryClient.invalidateQueries({ queryKey: ['activeTimer'] });
         },
     });
 }

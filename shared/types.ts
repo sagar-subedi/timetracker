@@ -113,6 +113,19 @@ export interface AnalyticsResponse {
     trends?: TrendData[];
 }
 
+export interface Project {
+    id: string;
+    name: string;
+    description?: string;
+    color: string;
+    userId: string;
+    createdAt: string;
+    updatedAt: string;
+    _count?: {
+        tasks: number;
+    };
+}
+
 export interface Task {
     id: string;
     userId: string;
@@ -125,6 +138,8 @@ export interface Task {
     completedAt?: string;
     createdAt: string;
     updatedAt: string;
+    projectId?: string;
+    project?: Project;
 }
 
 export interface DayRating {

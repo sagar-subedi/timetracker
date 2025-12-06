@@ -7,6 +7,7 @@ import categoriesRoutes from './routes/categories.js';
 import entriesRoutes from './routes/entries.js';
 import analyticsRoutes from './routes/analytics.js';
 import tasksRoutes from './routes/tasks.js';
+import projectsRoutes from './routes/projects.js';
 
 // Load environment variables
 dotenv.config();
@@ -24,6 +25,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/entries', entriesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/tasks', tasksRoutes);
+app.use('/api/projects', projectsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
