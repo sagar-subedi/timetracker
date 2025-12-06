@@ -19,6 +19,7 @@ export interface TimeEntry {
     userId: string;
     categoryId: string;
     category?: Category;
+    tasks?: Task[];
     startTime: Date;
     endTime: Date | null;
     duration: number; // in seconds
@@ -68,6 +69,7 @@ export interface UpdateTimeEntryRequest {
 
 export interface StartTimerRequest {
     categoryId: string;
+    taskIds?: string[];
 }
 
 export interface StopTimerRequest {
@@ -109,4 +111,26 @@ export interface AnalyticsResponse {
     stats?: Stats;
     distribution?: CategoryDistribution[];
     trends?: TrendData[];
+}
+
+export interface Task {
+    id: string;
+    userId: string;
+    title: string;
+    description?: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+    estimatedTime: number; // in minutes
+    isCompleted: boolean;
+    scheduledDate?: string; // ISO Date string
+    completedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface DayRating {
+    score: number;
+    level: 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'None';
+    totalTasks: number;
+    completedTasks: number;
+    message?: string;
 }

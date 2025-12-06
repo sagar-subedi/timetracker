@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Timer, BarChart2, History, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Timer, BarChart2, History, LogOut, Menu, X, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +14,7 @@ export function Sidebar() {
         { href: '/', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/timer', label: 'Timer', icon: Timer },
         { href: '/analytics', label: 'Analytics', icon: BarChart2 },
+        { href: '/tasks', label: 'Tasks', icon: ListTodo },
         { href: '/history', label: 'History', icon: History },
     ];
 

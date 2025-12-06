@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Timer from './pages/Timer';
 import Analytics from './pages/Analytics';
 import History from './pages/History';
+import Tasks from './pages/Tasks';
 
 function App() {
   const { user, loading } = useAuth();
@@ -32,6 +33,7 @@ function App() {
         <Route path="/timer" element={<Timer />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/history" element={<History />} />
+        <Route path="/tasks" element={<Tasks />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

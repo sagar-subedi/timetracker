@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Clock, Timer, Coffee, Brain } from 'lucide-react';
-import { useActiveTimer, useCategories, useStartTimer, useStopTimer } from '@/lib/queries';
+import { format } from 'date-fns';
+import { Play, Square, Clock, Timer, Coffee, Brain, Trash2, CheckCircle, Circle, ListTodo } from 'lucide-react';
+import { useActiveTimer, useCategories, useStartTimer, useStopTimer, useAbandonTimer, useTasks, useToggleTask } from '@/lib/queries';
 import { Button } from './ui/Button';
 import { Card, CardContent } from './ui/Card';
 import { cn } from '@/lib/utils';
 import { formatDuration } from '@/lib/utils';
+import { playCompletionSound } from '@/lib/sound';
+import confetti from 'canvas-confetti';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/Dialog';
 
 const POMODORO_MODES = {
     work: { label: 'Focus', duration: 25 * 60, icon: Brain },
@@ -17,10 +21,18 @@ export function LiveTimer() {
     const { data: categories } = useCategories();
     const startTimer = useStartTimer();
     const stopTimer = useStopTimer();
+    const abandonTimer = useAbandonTimer();
+    const toggleTask = useToggleTask();
+
+    // Fetch today's tasks for selection
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const { data: tasks } = useTasks({ scheduledDate: todayStr, isCompleted: false });
 
     const [elapsed, setElapsed] = useState(0);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
+    const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
 
     // Pomodoro state
     const [isPomodoro, setIsPomodoro] = useState(false);
@@ -56,7 +68,11 @@ export function LiveTimer() {
 
     const handleStart = () => {
         if (selectedCategoryId) {
-            startTimer.mutate(selectedCategoryId);
+            startTimer.mutate({
+                categoryId: selectedCategoryId,
+                taskIds: selectedTaskIds.length > 0 ? selectedTaskIds : undefined
+            });
+            setSelectedTaskIds([]); // Reset selection
         }
     };
 
@@ -201,56 +217,182 @@ export function LiveTimer() {
                             </div>
                         )}
 
-                        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                        <div className="flex flex-col md:flex-row items-start gap-4 w-full md:w-auto">
                             {!activeTimer ? (
-                                <>
-                                    <select
-                                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 w-full md:w-48"
-                                        value={selectedCategoryId}
-                                        onChange={(e) => setSelectedCategoryId(e.target.value)}
-                                        disabled={!categories?.length}
-                                    >
-                                        {categories?.map((cat) => (
-                                            <option key={cat.id} value={cat.id}>
-                                                {cat.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <Button
-                                        size="lg"
-                                        className="w-full md:w-auto gap-2"
-                                        onClick={handleStart}
-                                        disabled={!selectedCategoryId || startTimer.isPending}
-                                    >
-                                        <Play className="w-4 h-4 fill-current" />
-                                        Start {isPomodoro ? 'Focus' : 'Timer'}
-                                    </Button>
-                                </>
+                                <div className="flex flex-col gap-3 w-full md:w-auto">
+                                    <div className="flex gap-2">
+                                        <select
+                                            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 w-full md:w-48"
+                                            value={selectedCategoryId}
+                                            onChange={(e) => setSelectedCategoryId(e.target.value)}
+                                            disabled={!categories?.length}
+                                        >
+                                            {categories?.map((cat) => (
+                                                <option key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <Button
+                                            size="lg"
+                                            className="w-full md:w-auto gap-2"
+                                            onClick={handleStart}
+                                            disabled={!selectedCategoryId || startTimer.isPending}
+                                        >
+                                            <Play className="w-4 h-4 fill-current" />
+                                            Start {isPomodoro ? 'Focus' : 'Timer'}
+                                        </Button>
+                                    </div>
+
+                                    {/* Task Selection */}
+                                    <div className="w-full md:w-64 border rounded-md p-2 bg-background/50">
+                                        <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground font-medium px-1">
+                                            <ListTodo className="w-3 h-3" />
+                                            Select tasks to work on:
+                                        </div>
+                                        {tasks && tasks.length > 0 ? (
+                                            <div className="max-h-32 overflow-y-auto space-y-1">
+                                                {tasks.map(task => (
+                                                    <div
+                                                        key={task.id}
+                                                        className={cn(
+                                                            "flex items-center gap-2 p-1.5 rounded cursor-pointer text-sm transition-colors",
+                                                            selectedTaskIds.includes(task.id) ? "bg-primary/10 text-primary" : "hover:bg-accent"
+                                                        )}
+                                                        onClick={() => {
+                                                            setSelectedTaskIds(prev =>
+                                                                prev.includes(task.id)
+                                                                    ? prev.filter(id => id !== task.id)
+                                                                    : [...prev, task.id]
+                                                            );
+                                                        }}
+                                                    >
+                                                        <div className={cn(
+                                                            "w-3 h-3 rounded-sm border flex items-center justify-center",
+                                                            selectedTaskIds.includes(task.id) ? "border-primary bg-primary" : "border-muted-foreground"
+                                                        )}>
+                                                            {selectedTaskIds.includes(task.id) && <CheckCircle className="w-2.5 h-2.5 text-primary-foreground" />}
+                                                        </div>
+                                                        <span className="truncate">{task.title}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs text-muted-foreground p-2 text-center italic">
+                                                No tasks scheduled for today.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             ) : (
-                                <div className="flex items-center gap-3 w-full md:w-auto">
-                                    <input
-                                        type="text"
-                                        placeholder="What are you working on?"
-                                        className="flex h-10 w-full md:w-64 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={notes}
-                                        onChange={(e) => setNotes(e.target.value)}
-                                    />
-                                    <Button
-                                        size="lg"
-                                        variant="destructive"
-                                        className="gap-2"
-                                        onClick={handleStop}
-                                        disabled={stopTimer.isPending}
-                                    >
-                                        <Square className="w-4 h-4 fill-current" />
-                                        Stop
-                                    </Button>
+                                <div className="flex flex-col gap-3 w-full md:w-auto">
+                                    <div className="flex items-center gap-3 w-full md:w-auto">
+                                        <input
+                                            type="text"
+                                            placeholder="What are you working on?"
+                                            className="flex h-10 w-full md:w-64 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={notes}
+                                            onChange={(e) => setNotes(e.target.value)}
+                                        />
+                                        <Button
+                                            size="lg"
+                                            variant="destructive"
+                                            className="gap-2"
+                                            onClick={handleStop}
+                                            disabled={stopTimer.isPending}
+                                        >
+                                            <Square className="w-4 h-4 fill-current" />
+                                            Stop
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="text-destructive hover:bg-destructive/10"
+                                            onClick={() => setShowAbandonConfirm(true)}
+                                            disabled={abandonTimer.isPending}
+                                            title="Abandon Timer"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </Button>
+                                    </div>
+
+                                    {/* Linked Tasks Display */}
+                                    {activeTimer.tasks && activeTimer.tasks.length > 0 && (
+                                        <div className="w-full md:w-full border rounded-md p-2 bg-background/50">
+                                            <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground font-medium px-1">
+                                                <ListTodo className="w-3 h-3" />
+                                                Tasks in this session:
+                                            </div>
+                                            <div className="space-y-1">
+                                                {activeTimer.tasks.map(task => (
+                                                    <div
+                                                        key={task.id}
+                                                        className="flex items-center gap-2 p-1.5 rounded hover:bg-accent/50 transition-colors cursor-pointer"
+                                                        onClick={() => {
+                                                            const newStatus = !task.isCompleted;
+                                                            toggleTask.mutate({ id: task.id, isCompleted: newStatus });
+                                                            if (newStatus) {
+                                                                const priority = (task as any).priority || 'MEDIUM';
+
+                                                                // Play sound
+                                                                playCompletionSound(priority);
+
+                                                                const config = {
+                                                                    HIGH: { particleCount: 200, spread: 100, startVelocity: 45, origin: { y: 0.6 } },
+                                                                    MEDIUM: { particleCount: 100, spread: 70, startVelocity: 30, origin: { y: 0.6 } },
+                                                                    LOW: { particleCount: 50, spread: 40, startVelocity: 20, origin: { y: 0.6 } }
+                                                                };
+                                                                // @ts-ignore
+                                                                confetti(config[priority] || config.MEDIUM);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {task.isCompleted ? (
+                                                            <CheckCircle className="w-4 h-4 text-primary" />
+                                                        ) : (
+                                                            <Circle className="w-4 h-4 text-muted-foreground" />
+                                                        )}
+                                                        <span className={cn(
+                                                            "text-sm truncate flex-1",
+                                                            task.isCompleted && "text-muted-foreground line-through"
+                                                        )}>
+                                                            {task.title}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             </CardContent>
+
+            <Dialog open={showAbandonConfirm} onOpenChange={setShowAbandonConfirm}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Abandon Timer?</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p>Are you sure you want to abandon this timer? No time will be recorded.</p>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="ghost" onClick={() => setShowAbandonConfirm(false)}>Cancel</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                abandonTimer.mutate();
+                                setShowAbandonConfirm(false);
+                            }}
+                            disabled={abandonTimer.isPending}
+                        >
+                            Abandon
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

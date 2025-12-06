@@ -26,10 +26,64 @@ const updateEntrySchema = z.object({
 
 const startTimerSchema = z.object({
     categoryId: z.string(),
+    taskIds: z.array(z.string()).optional(),
 });
 
 const stopTimerSchema = z.object({
     notes: z.string().optional(),
+});
+
+// Get active timer
+router.get('/active', async (req: AuthRequest, res) => {
+    try {
+        const activeTimer = await prisma.timeEntry.findFirst({
+            where: {
+                userId: req.userId,
+                OR: [
+                    { endTime: null },
+                    { endTime: { isSet: false } }
+                ]
+            },
+            include: {
+                category: true,
+                tasks: true,
+            },
+            orderBy: { startTime: 'desc' }
+        });
+
+        res.json(activeTimer);
+    } catch (error) {
+        console.error('Get active timer error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Abandon active timer (delete it)
+router.delete('/active', async (req: AuthRequest, res) => {
+    try {
+        const activeTimer = await prisma.timeEntry.findFirst({
+            where: {
+                userId: req.userId,
+                OR: [
+                    { endTime: null },
+                    { endTime: { isSet: false } }
+                ]
+            },
+        });
+
+        if (!activeTimer) {
+            return res.status(404).json({ error: 'No active timer to abandon' });
+        }
+
+        await prisma.timeEntry.delete({
+            where: { id: activeTimer.id }
+        });
+
+        res.json({ message: 'Timer abandoned' });
+    } catch (error) {
+        console.error('Abandon timer error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // Get all entries with optional filters
@@ -54,6 +108,7 @@ router.get('/', async (req: AuthRequest, res) => {
             where,
             include: {
                 category: true,
+                tasks: true,
             },
             orderBy: { startTime: 'desc' },
         });
@@ -97,6 +152,7 @@ router.post('/', async (req: AuthRequest, res) => {
             },
             include: {
                 category: true,
+                tasks: true,
             },
         });
 
@@ -155,6 +211,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
             data: updateData,
             include: {
                 category: true,
+                tasks: true,
             },
         });
 
@@ -194,7 +251,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 // Start timer
 router.post('/start', async (req: AuthRequest, res) => {
     try {
-        const { categoryId } = startTimerSchema.parse(req.body);
+        const { categoryId, taskIds } = startTimerSchema.parse(req.body);
 
         // Verify category ownership
         const category = await prisma.category.findFirst({
@@ -226,9 +283,11 @@ router.post('/start', async (req: AuthRequest, res) => {
                 categoryId,
                 startTime: new Date(),
                 isManual: false,
+                tasks: taskIds ? { connect: taskIds.map(id => ({ id })) } : undefined,
             },
             include: {
                 category: true,
+                tasks: true,
             },
         });
 
@@ -286,30 +345,6 @@ router.post('/stop', async (req: AuthRequest, res) => {
             return res.status(400).json({ error: error.errors });
         }
         console.error('Stop timer error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Get active timer
-router.get('/active', async (req: AuthRequest, res) => {
-    try {
-        const activeTimer = await prisma.timeEntry.findFirst({
-            where: {
-                userId: req.userId,
-                OR: [
-                    { endTime: null },
-                    { endTime: { isSet: false } }
-                ]
-            },
-            include: {
-                category: true,
-            },
-            orderBy: { startTime: 'desc' }
-        });
-
-        res.json(activeTimer);
-    } catch (error) {
-        console.error('Get active timer error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

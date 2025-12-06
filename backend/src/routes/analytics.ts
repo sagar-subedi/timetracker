@@ -272,4 +272,58 @@ router.get('/trends', async (req: AuthRequest, res) => {
     }
 });
 
+// Get day rating
+router.get('/rating', async (req: AuthRequest, res) => {
+    try {
+        const dateParam = req.query.date as string;
+        const date = dateParam ? new Date(dateParam) : new Date();
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const tasks = await prisma.task.findMany({
+            where: {
+                userId: req.userId,
+                scheduledDate: {
+                    gte: startOfDay,
+                    lte: endOfDay,
+                },
+            },
+        });
+
+        if (tasks.length === 0) {
+            return res.json({ score: 0, level: 'None', message: 'No tasks scheduled for this day' });
+        }
+
+        const priorityMap: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
+        let totalScore = 0;
+        let earnedScore = 0;
+
+        tasks.forEach((task: any) => {
+            const weight = priorityMap[task.priority] || 1;
+            totalScore += weight;
+            if (task.isCompleted) {
+                earnedScore += weight;
+            }
+        });
+
+        const percentage = totalScore > 0 ? (earnedScore / totalScore) * 100 : 0;
+        let level = 'Bronze';
+        if (percentage >= 100) level = 'Platinum';
+        else if (percentage >= 80) level = 'Gold';
+        else if (percentage >= 50) level = 'Silver';
+
+        res.json({
+            score: Math.round(percentage),
+            level,
+            totalTasks: tasks.length,
+            completedTasks: tasks.filter((t: any) => t.isCompleted).length
+        });
+    } catch (error) {
+        console.error('Get rating error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router;

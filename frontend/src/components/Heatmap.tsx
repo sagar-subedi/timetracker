@@ -1,27 +1,36 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useHeatmap, useCategories, useEntries } from '@/lib/queries';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/Dialog';
 import { TimeEntryCard } from './TimeEntryCard';
 import { Activity, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 export function Heatmap() {
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const { data: heatmapData, isLoading } = useHeatmap(selectedCategoryId || undefined);
     const { data: categories } = useCategories();
+
+    // Scroll to end on load
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+        }
+    }, [heatmapData]);
 
     // Fetch entries for the selected date when modal is open
     // We need to construct start/end times for the selected date
     const dateQuery = useMemo(() => {
         if (!selectedDate) return undefined;
-        const start = new Date(selectedDate);
-        // Ensure we get the full day in local time
-        // The date string from heatmap is YYYY-MM-DD
-        // We want 00:00:00 to 23:59:59 of that day
+
+        // selectedDate is YYYY-MM-DD from the heatmap data
+        // We want to treat this as a local date, not UTC
+        const start = new Date(selectedDate + 'T00:00:00');
+
         const startDate = new Date(start);
         startDate.setHours(0, 0, 0, 0);
 
@@ -47,7 +56,7 @@ export function Heatmap() {
         for (let i = 364; i >= 0; i--) {
             const date = new Date(today);
             date.setDate(date.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = format(date, 'yyyy-MM-dd'); // Use local date string
             const data = dataMap.get(dateStr);
 
             result.push({
@@ -62,12 +71,16 @@ export function Heatmap() {
 
     // Group by weeks for the grid
     const weeks = useMemo(() => {
+        if (days.length === 0) return [];
+
         type DayData = typeof days[0];
         const result: (DayData | null)[][] = [];
         let currentWeek: (DayData | null)[] = [];
 
         // Pad the beginning if the first day isn't Sunday
-        const firstDay = new Date(days[0]?.date || new Date());
+        // We need to parse the date string to get the correct day of week
+        const firstDateStr = days[0].date;
+        const firstDay = new Date(firstDateStr + 'T00:00:00');
         const dayOfWeek = firstDay.getDay(); // 0 = Sunday
 
         for (let i = 0; i < dayOfWeek; i++) {
@@ -139,7 +152,7 @@ export function Heatmap() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-x-auto pb-2">
+                    <div className="w-full overflow-x-auto pb-2" ref={scrollContainerRef}>
                         <div className="flex gap-1 min-w-max">
                             {weeks.map((week, weekIndex) => (
                                 <div key={weekIndex} className="flex flex-col gap-1">
