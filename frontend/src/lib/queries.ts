@@ -182,8 +182,19 @@ export function useDeleteProject() {
     });
 }
 
+export function useProject(id: string) {
+    return useQuery({
+        queryKey: ['project', id],
+        queryFn: async () => {
+            const { data } = await api.get<any>(`/projects/${id}`);
+            return data;
+        },
+        enabled: !!id,
+    });
+}
+
 // Tasks
-export function useTasks(params?: { scheduledDate?: string; isCompleted?: boolean }) {
+export function useTasks(params?: { scheduledDate?: string; projectId?: string }) {
     return useQuery({
         queryKey: ['tasks', params],
         queryFn: async () => {
@@ -207,16 +218,17 @@ export function useCreateTask() {
     });
 }
 
-export function useToggleTask() {
+
+export function useUpdateTaskStatus() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data: { id: string; isCompleted: boolean }) => {
-            const { data: response } = await api.put<Task>(`/tasks/${data.id}`, { isCompleted: data.isCompleted });
+        mutationFn: async (data: { id: string; status: 'TODO' | 'IN_PROGRESS' | 'DONE' }) => {
+            const { data: response } = await api.put<Task>(`/tasks/${data.id}`, { status: data.status });
             return response;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['dayRating'] });
+            queryClient.invalidateQueries({ queryKey: ['project'] });
         },
     });
 }

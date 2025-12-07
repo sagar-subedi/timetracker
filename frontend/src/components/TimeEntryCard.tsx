@@ -57,8 +57,8 @@ export function TimeEntryCard({ entry }: TimeEntryCardProps) {
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {entry.tasks.map(task => (
                                             <div key={task.id} className="flex items-center gap-1 text-xs bg-accent/50 px-2 py-1 rounded-full">
-                                                <CheckCircle className={cn("w-3 h-3", task.isCompleted ? "text-primary" : "text-muted-foreground")} />
-                                                <span className={task.isCompleted ? "text-muted-foreground line-through" : ""}>{task.title}</span>
+                                                <CheckCircle className={cn("w-3 h-3", task.status === 'DONE' ? "text-primary" : "text-muted-foreground")} />
+                                                <span className={task.status === 'DONE' ? "text-muted-foreground line-through" : ""}>{task.title}</span>
                                             </div>
                                         ))}
                                     </div>

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Plus, Trash2, CheckCircle, Circle, Calendar as CalendarIcon, AlertCircle } from 'lucide-react';
+import { CheckCircle, Circle, Trash2, Flag, Calendar, Clock, Plus } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import api from '../lib/api';
 import { cn } from '../lib/utils';
 import { Task } from '@shared/types';
+import { useUpdateTaskStatus } from '../lib/queries';
 
 
 export default function Tasks() {
@@ -48,16 +49,7 @@ export default function Tasks() {
         },
     });
 
-    const toggleTask = useMutation({
-        mutationFn: async ({ id, isCompleted }: { id: string; isCompleted: boolean }) => {
-            const { data } = await api.put(`/tasks/${id}`, { isCompleted });
-            return data;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['stats'] }); // Update rating
-        },
-    });
+    const updateTaskStatus = useUpdateTaskStatus();
 
     const deleteTask = useMutation({
         mutationFn: async (id: string) => {
@@ -166,18 +158,21 @@ export default function Tasks() {
                         <div
                             key={task.id}
                             className={cn(
-                                "group flex items-center gap-4 p-4 rounded-lg border transition-all hover:shadow-md",
-                                task.isCompleted ? "bg-muted/50 border-transparent" : "glass border-border/50"
+                                "group flex items-center gap-3 p-3 rounded-md transition-all border",
+                                task.status === 'DONE' ? "bg-muted/50 border-transparent" : "glass border-border/50"
                             )}
                         >
                             <button
-                                onClick={() => toggleTask.mutate({ id: task.id, isCompleted: !task.isCompleted })}
+                                onClick={() => {
+                                    const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
+                                    updateTaskStatus.mutate({ id: task.id, status: newStatus });
+                                }}
                                 className={cn(
-                                    "flex-shrink-0 transition-colors",
-                                    task.isCompleted ? "text-primary" : "text-muted-foreground hover:text-primary"
+                                    "transition-colors",
+                                    task.status === 'DONE' ? "text-primary" : "text-muted-foreground hover:text-primary"
                                 )}
                             >
-                                {task.isCompleted ? (
+                                {task.status === 'DONE' ? (
                                     <CheckCircle className="w-6 h-6" />
                                 ) : (
                                     <Circle className="w-6 h-6" />
@@ -185,24 +180,40 @@ export default function Tasks() {
                             </button>
 
                             <div className="flex-1 min-w-0">
-                                <h3 className={cn(
-                                    "font-medium truncate transition-all",
-                                    task.isCompleted && "text-muted-foreground line-through"
+                                <span className={cn(
+                                    "text-sm flex-1",
+                                    task.status === 'DONE' && "text-muted-foreground line-through"
                                 )}>
                                     {task.title}
-                                </h3>
+                                </span>
                                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                     {task.scheduledDate && (
                                         <span className="flex items-center gap-1">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {format(new Date(task.scheduledDate), 'MMM d')}
+                                            <Calendar className="w-3 h-3" />
+                                            {format(new Date(task.scheduledDate), 'MMM dd, yyyy')}
                                         </span>
                                     )}
-                                    <span className={cn("px-2 py-0.5 rounded-full border text-[10px] font-semibold", getPriorityColor(task.priority))}>
-                                        {task.priority}
-                                    </span>
                                     {task.estimatedTime > 0 && (
-                                        <span>{task.estimatedTime}m est.</span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="w-3 h-3" />
+                                            {task.estimatedTime}m
+                                        </span>
+                                    )}
+                                    {task.project ? (
+                                        <span
+                                            className="px-2 py-0.5 rounded-full text-xs"
+                                            style={{
+                                                backgroundColor: `${task.project.color}20`,
+                                                color: task.project.color,
+                                                border: `1px solid ${task.project.color}40`
+                                            }}
+                                        >
+                                            {task.project.name}
+                                        </span>
+                                    ) : (
+                                        <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs">
+                                            Unassigned
+                                        </span>
                                     )}
                                 </div>
                             </div>

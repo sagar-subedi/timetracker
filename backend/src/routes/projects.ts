@@ -12,6 +12,9 @@ const projectSchema = z.object({
     name: z.string().min(1),
     description: z.string().optional(),
     color: z.string().regex(/^#[0-9A-F]{6}$/i).optional().default('#000000'),
+    status: z.enum(['ACTIVE', 'COMPLETED', 'ARCHIVED']).optional(),
+    deadline: z.string().datetime().optional().nullable(),
+    budget: z.number().min(0).optional().nullable(),
 });
 
 // Get all projects
@@ -34,6 +37,61 @@ router.get('/', async (req: AuthRequest, res) => {
     }
 });
 
+// Get project details
+router.get('/:id', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+
+        const project = await prisma.project.findFirst({
+            where: { id, userId: req.userId },
+            include: {
+                _count: {
+                    select: { tasks: true }
+                }
+            }
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Aggregate time spent
+        const timeAggregation = await prisma.timeEntry.aggregate({
+            where: {
+                tasks: {
+                    some: {
+                        projectId: id
+                    }
+                }
+            },
+            _sum: {
+                duration: true
+            }
+        });
+
+        // Calculate task progress
+        const taskStats = await prisma.task.groupBy({
+            by: ['status'],
+            where: { projectId: id },
+            _count: true
+        });
+
+        const completedTasks = taskStats.find(s => s.status === 'DONE')?._count || 0;
+        const totalTasks = taskStats.reduce((sum, stat) => sum + stat._count, 0);
+
+        res.json({
+            ...project,
+            totalDuration: timeAggregation._sum.duration || 0,
+            progress: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+            completedTasks,
+            totalTasks
+        });
+    } catch (error) {
+        console.error('Get project details error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Create project
 router.post('/', async (req: AuthRequest, res) => {
     try {
@@ -43,6 +101,7 @@ router.post('/', async (req: AuthRequest, res) => {
             data: {
                 ...data,
                 userId: req.userId!,
+                deadline: data.deadline ? new Date(data.deadline) : null,
             },
         });
 

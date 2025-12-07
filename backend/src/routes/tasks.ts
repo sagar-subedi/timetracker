@@ -22,8 +22,8 @@ const updateTaskSchema = z.object({
     title: z.string().min(1).optional(),
     description: z.string().optional(),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+    status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
     estimatedTime: z.number().min(0).optional(),
-    isCompleted: z.boolean().optional(),
     scheduledDate: z.string().datetime().nullable().optional(),
     projectId: z.string().nullable().optional(),
 });
@@ -31,7 +31,7 @@ const updateTaskSchema = z.object({
 // Get all tasks
 router.get('/', async (req: AuthRequest, res) => {
     try {
-        const { scheduledDate, isCompleted } = req.query;
+        const { scheduledDate, projectId } = req.query;
 
         const where: Prisma.TaskWhereInput = { userId: req.userId };
 
@@ -46,15 +46,15 @@ router.get('/', async (req: AuthRequest, res) => {
             };
         }
 
-        if (isCompleted !== undefined) {
-            where.isCompleted = isCompleted === 'true';
+        if (projectId) {
+            where.projectId = projectId as string;
         }
 
         const tasks = await prisma.task.findMany({
             where,
             include: { project: true },
             orderBy: [
-                { isCompleted: 'asc' },
+                { status: 'asc' },
                 { createdAt: 'desc' }
             ]
         });
@@ -69,8 +69,9 @@ router.get('/', async (req: AuthRequest, res) => {
 
         const sortedTasks = tasks.sort((a, b) => {
             // 1. Completed status (Uncompleted first)
-            if (a.isCompleted !== b.isCompleted) {
-                return a.isCompleted ? 1 : -1;
+            if (a.status !== b.status) {
+                // DONE tasks go to bottom
+                return a.status === 'DONE' ? 1 : -1;
             }
             // 2. Priority (High to Low)
             if (a.priority !== b.priority) {
@@ -132,14 +133,24 @@ router.put('/:id', async (req: AuthRequest, res) => {
         if (data.title) updateData.title = data.title;
         if (data.description !== undefined) updateData.description = data.description;
         if (data.priority) updateData.priority = data.priority;
+
+        // Sync status with completedAt
+        if (data.status) {
+            updateData.status = data.status;
+            if (data.status === 'DONE') {
+                updateData.completedAt = new Date();
+            } else {
+                updateData.completedAt = null;
+            }
+        }
+
         if (data.estimatedTime !== undefined) updateData.estimatedTime = data.estimatedTime;
         if (data.scheduledDate !== undefined) {
             updateData.scheduledDate = data.scheduledDate ? new Date(data.scheduledDate) : null;
         }
 
-        if (data.isCompleted !== undefined) {
-            updateData.isCompleted = data.isCompleted;
-            updateData.completedAt = data.isCompleted ? new Date() : null;
+        if (data.projectId !== undefined) {
+            updateData.projectId = data.projectId;
         }
 
         const updated = await prisma.task.update({

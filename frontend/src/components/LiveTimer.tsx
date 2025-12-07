@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Play, Square, Clock, Timer, Coffee, Brain, Trash2, CheckCircle, Circle, ListTodo } from 'lucide-react';
-import { useActiveTimer, useCategories, useStartTimer, useStopTimer, useAbandonTimer, useTasks, useToggleTask } from '@/lib/queries';
+import { useActiveTimer, useStartTimer, useStopTimer, useAbandonTimer, useUpdateTaskStatus, useTasks, useCategories } from '@/lib/queries';
 import { Button } from './ui/Button';
 import { Card, CardContent } from './ui/Card';
 import { cn } from '@/lib/utils';
@@ -22,11 +22,11 @@ export function LiveTimer() {
     const startTimer = useStartTimer();
     const stopTimer = useStopTimer();
     const abandonTimer = useAbandonTimer();
-    const toggleTask = useToggleTask();
+    const updateTaskStatus = useUpdateTaskStatus();
 
     // Fetch today's tasks for selection
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const { data: tasks } = useTasks({ scheduledDate: todayStr, isCompleted: false });
+    const { data: tasks } = useTasks({ scheduledDate: todayStr });
 
     const [elapsed, setElapsed] = useState(0);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
@@ -160,7 +160,7 @@ export function LiveTimer() {
                             {activeTimer && isPomodoro && !isOvertime && (
                                 <div
                                     className="absolute bottom-0 left-0 right-0 bg-black/20 transition-all duration-1000"
-                                    style={{ height: `${progress}%` }}
+                                    style={{ height: `${progress}% ` }}
                                 />
                             )}
 
@@ -329,8 +329,8 @@ export function LiveTimer() {
                                                         key={task.id}
                                                         className="flex items-center gap-2 p-1.5 rounded hover:bg-accent/50 transition-colors cursor-pointer"
                                                         onClick={() => {
-                                                            const newStatus = !task.isCompleted;
-                                                            toggleTask.mutate({ id: task.id, isCompleted: newStatus });
+                                                            const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
+                                                            updateTaskStatus.mutate({ id: task.id, status: newStatus });
                                                             if (newStatus) {
                                                                 const priority = (task as any).priority || 'MEDIUM';
 
@@ -347,14 +347,14 @@ export function LiveTimer() {
                                                             }
                                                         }}
                                                     >
-                                                        {task.isCompleted ? (
+                                                        {task.status === 'DONE' ? (
                                                             <CheckCircle className="w-4 h-4 text-primary" />
                                                         ) : (
                                                             <Circle className="w-4 h-4 text-muted-foreground" />
                                                         )}
                                                         <span className={cn(
                                                             "text-sm truncate flex-1",
-                                                            task.isCompleted && "text-muted-foreground line-through"
+                                                            task.status === 'DONE' && "text-muted-foreground line-through"
                                                         )}>
                                                             {task.title}
                                                         </span>

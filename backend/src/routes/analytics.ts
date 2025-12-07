@@ -303,7 +303,7 @@ router.get('/rating', async (req: AuthRequest, res) => {
         tasks.forEach((task: any) => {
             const weight = priorityMap[task.priority] || 1;
             totalScore += weight;
-            if (task.isCompleted) {
+            if (task.status === 'DONE') {
                 earnedScore += weight;
             }
         });
@@ -318,7 +318,7 @@ router.get('/rating', async (req: AuthRequest, res) => {
             score: Math.round(percentage),
             level,
             totalTasks: tasks.length,
-            completedTasks: tasks.filter((t: any) => t.isCompleted).length
+            completedTasks: tasks.filter((t: any) => t.status === 'DONE').length
         });
     } catch (error) {
         console.error('Get rating error:', error);

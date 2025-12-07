@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
@@ -9,6 +10,7 @@ import { cn } from '../lib/utils';
 
 export default function Projects() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const { data: projects, isLoading } = useProjects();
     const createProject = useCreateProject();
     const deleteProject = useDeleteProject();
@@ -81,7 +83,12 @@ export default function Projects() {
                         </div>
                     ) : (
                         projects?.map((project) => (
-                            <Card key={project.id} className="group hover:shadow-md transition-all border-l-4" style={{ borderLeftColor: project.color }}>
+                            <Card
+                                key={project.id}
+                                className="group hover:shadow-md transition-all border-l-4 cursor-pointer"
+                                style={{ borderLeftColor: project.color }}
+                                onClick={() => navigate(`/projects/${project.id}`)}
+                            >
                                 <CardHeader className="flex flex-row items-start justify-between pb-2">
                                     <CardTitle className="text-lg font-semibold truncate pr-4">
                                         {project.name}

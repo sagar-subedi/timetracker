@@ -118,12 +118,20 @@ export interface Project {
     name: string;
     description?: string;
     color: string;
+    status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+    deadline?: string;
+    budget?: number; // in minutes
     userId: string;
     createdAt: string;
     updatedAt: string;
     _count?: {
         tasks: number;
     };
+    // Aggregated fields from backend
+    totalDuration?: number;
+    progress?: number;
+    completedTasks?: number;
+    totalTasks?: number;
 }
 
 export interface Task {
@@ -132,8 +140,8 @@ export interface Task {
     title: string;
     description?: string;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
+    status: 'TODO' | 'IN_PROGRESS' | 'DONE';
     estimatedTime: number; // in minutes
-    isCompleted: boolean;
     scheduledDate?: string; // ISO Date string
     completedAt?: string;
     createdAt: string;

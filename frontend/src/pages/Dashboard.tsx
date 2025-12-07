@@ -8,7 +8,7 @@ import { StatsCard } from '../components/StatsCard';
 
 import { format } from 'date-fns';
 import { CheckCircle, Circle, Trophy, Plus, Flag, Trash2, Folder } from 'lucide-react';
-import { useTasks, useDayRating, useCreateTask, useToggleTask, useDeleteTask, useProjects } from '../lib/queries';
+import { useTasks, useDayRating, useCreateTask, useUpdateTaskStatus, useDeleteTask, useProjects } from '../lib/queries';
 import { useState } from 'react';
 import { cn } from '../lib/utils';
 
@@ -20,7 +20,7 @@ export default function Dashboard() {
     const { data: rating } = useDayRating(todayStr);
     const { data: projects } = useProjects();
     const createTask = useCreateTask();
-    const toggleTask = useToggleTask();
+    const updateTaskStatus = useUpdateTaskStatus();
     const deleteTask = useDeleteTask();
 
     const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -47,8 +47,9 @@ export default function Dashboard() {
         setNewTaskPriority('MEDIUM'); // Reset priority
     };
 
-    const handleToggleTask = (id: string, isCompleted: boolean) => {
-        toggleTask.mutate({ id, isCompleted: !isCompleted });
+    const handleToggleTask = (id: string, currentStatus: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
+        const newStatus = currentStatus === 'DONE' ? 'TODO' : 'DONE';
+        updateTaskStatus.mutate({ id, status: newStatus });
     };
 
     const handleDeleteTask = () => {
@@ -161,10 +162,10 @@ export default function Dashboard() {
                                                 className="group flex items-center gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors border border-transparent hover:border-border"
                                             >
                                                 <button
-                                                    onClick={() => handleToggleTask(task.id, task.isCompleted)}
-                                                    disabled={toggleTask.isPending}
+                                                    onClick={() => handleToggleTask(task.id, task.status)}
+                                                    disabled={updateTaskStatus.isPending}
                                                 >
-                                                    {task.isCompleted ? (
+                                                    {task.status === 'DONE' ? (
                                                         <CheckCircle className="w-4 h-4 text-primary" />
                                                     ) : (
                                                         <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -172,16 +173,24 @@ export default function Dashboard() {
                                                 </button>
                                                 <span className={cn(
                                                     "text-sm truncate flex-1",
-                                                    task.isCompleted && "text-muted-foreground line-through"
+                                                    task.status === 'DONE' && "text-muted-foreground line-through"
                                                 )}>
                                                     {task.title}
                                                 </span>
-                                                {task.project && (
+                                                {task.project ? (
                                                     <span
-                                                        className="text-[10px] px-1.5 py-0.5 rounded-full border opacity-70"
-                                                        style={{ borderColor: task.project.color, color: task.project.color }}
+                                                        className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                                                        style={{
+                                                            backgroundColor: `${task.project.color}20`,
+                                                            color: task.project.color,
+                                                            border: `1px solid ${task.project.color}40`
+                                                        }}
                                                     >
                                                         {task.project.name}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
+                                                        Unassigned
                                                     </span>
                                                 )}
                                                 <Flag className={cn(
