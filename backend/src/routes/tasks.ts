@@ -150,7 +150,9 @@ router.put('/:id', async (req: AuthRequest, res) => {
         }
 
         if (data.projectId !== undefined) {
-            updateData.projectId = data.projectId;
+            updateData.project = data.projectId
+                ? { connect: { id: data.projectId } }
+                : { disconnect: true };
         }
 
         const updated = await prisma.task.update({
