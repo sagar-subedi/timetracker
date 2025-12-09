@@ -61,7 +61,8 @@ export function LiveTimer() {
 
     const [elapsed, setElapsed] = useState(0);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [droppedTaskIds, setDroppedTaskIds] = useState<string[]>([]);
+    const [isDragOver, setIsDragOver] = useState(false);
     const [notes, setNotes] = useState('');
     const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
 
@@ -101,9 +102,9 @@ export function LiveTimer() {
         if (selectedCategoryId) {
             startTimer.mutate({
                 categoryId: selectedCategoryId,
-                taskIds: selectedTaskIds.length > 0 ? selectedTaskIds : undefined
+                taskIds: droppedTaskIds.length > 0 ? droppedTaskIds : undefined
             });
-            setSelectedTaskIds([]); // Reset selection
+            setDroppedTaskIds([]); // Reset dropped tasks
         }
     };
 
@@ -275,42 +276,88 @@ export function LiveTimer() {
                                         </Button>
                                     </div>
 
-                                    {/* Task Selection */}
-                                    <div className="w-full md:w-64 border rounded-md p-2 bg-background/50">
-                                        <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground font-medium px-1">
-                                            <ListTodo className="w-3 h-3" />
-                                            Select tasks to work on:
+                                    {/* Drop Zone for Tasks */}
+                                    <div
+                                        className={cn(
+                                            "w-full md:w-64 border-2 border-dashed rounded-lg p-4 transition-all",
+                                            isDragOver
+                                                ? "border-primary bg-primary/10"
+                                                : "border-muted-foreground/30 bg-background/50"
+                                        )}
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.dataTransfer.dropEffect = 'copy';
+                                        }}
+                                        onDragEnter={() => setIsDragOver(true)}
+                                        onDragLeave={() => setIsDragOver(false)}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            setIsDragOver(false);
+                                            const taskId = e.dataTransfer.getData('taskId');
+                                            if (taskId && !droppedTaskIds.includes(taskId)) {
+                                                setDroppedTaskIds([...droppedTaskIds, taskId]);
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground font-medium">
+                                            <ListTodo className="w-4 h-4" />
+                                            Session Tasks
                                         </div>
-                                        {tasks && tasks.length > 0 ? (
-                                            <div className="max-h-32 overflow-y-auto space-y-1">
-                                                {tasks.map(task => (
-                                                    <div
-                                                        key={task.id}
-                                                        className={cn(
-                                                            "flex items-center gap-2 p-1.5 rounded cursor-pointer text-sm transition-colors",
-                                                            selectedTaskIds.includes(task.id) ? "bg-primary/10 text-primary" : "hover:bg-accent"
-                                                        )}
-                                                        onClick={() => {
-                                                            setSelectedTaskIds(prev =>
-                                                                prev.includes(task.id)
-                                                                    ? prev.filter(id => id !== task.id)
-                                                                    : [...prev, task.id]
-                                                            );
-                                                        }}
-                                                    >
-                                                        <div className={cn(
-                                                            "w-3 h-3 rounded-sm border flex items-center justify-center",
-                                                            selectedTaskIds.includes(task.id) ? "border-primary bg-primary" : "border-muted-foreground"
-                                                        )}>
-                                                            {selectedTaskIds.includes(task.id) && <CheckCircle className="w-2.5 h-2.5 text-primary-foreground" />}
+
+                                        {droppedTaskIds.length > 0 ? (
+                                            <div className="space-y-2">
+                                                {droppedTaskIds.map(taskId => {
+                                                    const task = tasks?.find(t => t.id === taskId);
+                                                    if (!task) return null;
+                                                    const isCompleted = task.status === 'DONE';
+                                                    return (
+                                                        <div
+                                                            key={task.id}
+                                                            className={cn(
+                                                                "flex items-center gap-2 p-2 rounded text-sm group transition-colors",
+                                                                isCompleted ? "bg-muted/50" : "bg-accent/50"
+                                                            )}
+                                                        >
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newStatus = isCompleted ? 'TODO' : 'DONE';
+                                                                    updateTaskStatus.mutate({ id: task.id, status: newStatus });
+                                                                }}
+                                                                className="flex-shrink-0"
+                                                                disabled={updateTaskStatus.isPending}
+                                                            >
+                                                                {isCompleted ? (
+                                                                    <CheckCircle className="w-4 h-4 text-primary" />
+                                                                ) : (
+                                                                    <Circle className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors" />
+                                                                )}
+                                                            </button>
+                                                            <span
+                                                                className={cn(
+                                                                    "truncate flex-1",
+                                                                    isCompleted && "text-muted-foreground line-through"
+                                                                )}
+                                                                title={task.title}
+                                                            >
+                                                                {task.title}
+                                                            </span>
+                                                            {!activeTimer && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setDroppedTaskIds(droppedTaskIds.filter(id => id !== taskId));
+                                                                    }}
+                                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive flex-shrink-0"
+                                                                >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </button>
+                                                            )}
                                                         </div>
-                                                        <span className="truncate">{task.title}</span>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         ) : (
-                                            <div className="text-xs text-muted-foreground p-2 text-center italic">
-                                                No tasks scheduled for today.
+                                            <div className="text-xs text-muted-foreground text-center py-6 italic">
+                                                Drag tasks from Today's Plan here
                                             </div>
                                         )}
                                     </div>

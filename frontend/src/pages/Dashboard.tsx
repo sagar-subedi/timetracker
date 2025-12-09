@@ -197,9 +197,15 @@ export default function Dashboard() {
                                         tasks.map(task => (
                                             <div
                                                 key={task.id}
+                                                draggable={task.status !== 'DONE'}
+                                                onDragStart={(e) => {
+                                                    e.dataTransfer.setData('taskId', task.id);
+                                                    e.dataTransfer.effectAllowed = 'copy';
+                                                }}
                                                 className={cn(
-                                                    "group flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-colors border",
-                                                    isOverdue(task) ? "border-red-500/30 bg-red-500/5" : "border-transparent hover:border-border"
+                                                    "group flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-all border",
+                                                    isOverdue(task) ? "border-red-500/30 bg-red-500/5" : "border-transparent hover:border-border",
+                                                    task.status !== 'DONE' && "cursor-grab active:cursor-grabbing active:opacity-50"
                                                 )}
                                             >
                                                 <button
