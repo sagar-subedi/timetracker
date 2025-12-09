@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Play, Square, Clock, Timer, Coffee, Brain, Trash2, CheckCircle, Circle, ListTodo } from 'lucide-react';
 import { useActiveTimer, useStartTimer, useStopTimer, useAbandonTimer, useUpdateTaskStatus, useTasks, useCategories } from '@/lib/queries';
@@ -24,9 +24,40 @@ export function LiveTimer() {
     const abandonTimer = useAbandonTimer();
     const updateTaskStatus = useUpdateTaskStatus();
 
-    // Fetch today's tasks for selection
+    // Fetch tasks - same logic as Dashboard (today + overdue)
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const { data: tasks } = useTasks({ scheduledDate: todayStr });
+    const { data: todayTasks } = useTasks({ scheduledDate: todayStr });
+    const { data: allTasks } = useTasks({});
+
+    // Combine today's tasks with overdue tasks (same as Dashboard)
+    const tasks = React.useMemo(() => {
+        if (!allTasks) return todayTasks || [];
+
+        const today = new Date(todayStr);
+        const overdueTasks = allTasks.filter(task => {
+            if (!task.scheduledDate || task.status === 'DONE') return false;
+            const scheduledDate = new Date(task.scheduledDate);
+            return scheduledDate < today;
+        });
+
+        // Combine and deduplicate
+        const combined = [...(todayTasks || []), ...overdueTasks];
+        const uniqueTasks = Array.from(new Map(combined.map(task => [task.id, task])).values());
+
+        // Sort: overdue first, then by scheduled date
+        return uniqueTasks.sort((a, b) => {
+            const aDate = new Date(a.scheduledDate || '');
+            const bDate = new Date(b.scheduledDate || '');
+            const today = new Date(todayStr);
+
+            const aOverdue = aDate < today && a.status !== 'DONE';
+            const bOverdue = bDate < today && b.status !== 'DONE';
+
+            if (aOverdue && !bOverdue) return -1;
+            if (!aOverdue && bOverdue) return 1;
+            return aDate.getTime() - bDate.getTime();
+        });
+    }, [todayTasks, allTasks, todayStr]);
 
     const [elapsed, setElapsed] = useState(0);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
