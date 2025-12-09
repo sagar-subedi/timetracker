@@ -4,7 +4,7 @@ import { TrendChart } from '@/components/charts/TrendChart';
 
 export default function Analytics() {
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
+        <div className="space-y-8">
             <h1 className="text-3xl font-bold text-gradient">Analytics</h1>
 
             <section>

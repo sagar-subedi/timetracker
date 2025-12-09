@@ -44,7 +44,7 @@ export default function ProjectDetails() {
 
     if (isLoading) {
         return (
-            <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+            <div className="space-y-8">
                 <div className="animate-pulse space-y-4">
                     <div className="h-8 w-48 bg-muted/20 rounded"></div>
                     <div className="h-32 bg-muted/20 rounded"></div>
@@ -55,7 +55,7 @@ export default function ProjectDetails() {
 
     if (!project) {
         return (
-            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+            <div>
                 <p>Project not found</p>
             </div>
         );

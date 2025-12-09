@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import React, { useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/Dialog';
@@ -7,21 +8,58 @@ import { Heatmap } from '../components/Heatmap';
 import { StatsCard } from '../components/StatsCard';
 
 import { format } from 'date-fns';
-import { CheckCircle, Circle, Trophy, Plus, Flag, Trash2, Folder } from 'lucide-react';
+import { CheckCircle, Circle, Trophy, Plus, Flag, Trash2, Folder, AlertCircle } from 'lucide-react';
 import { useTasks, useDayRating, useCreateTask, useUpdateTaskStatus, useDeleteTask, useProjects } from '../lib/queries';
-import { useState } from 'react';
 import { cn } from '../lib/utils';
 
 export default function Dashboard() {
     const { user, logout } = useAuth();
     const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-    const { data: tasks } = useTasks({ scheduledDate: todayStr });
+    const { data: todayTasks } = useTasks({ scheduledDate: todayStr });
+    const { data: allTasks } = useTasks({});
     const { data: rating } = useDayRating(todayStr);
     const { data: projects } = useProjects();
     const createTask = useCreateTask();
     const updateTaskStatus = useUpdateTaskStatus();
     const deleteTask = useDeleteTask();
+
+    // Combine today's tasks with overdue tasks (past scheduled date and not completed)
+    const tasks = React.useMemo(() => {
+        if (!allTasks) return todayTasks || [];
+
+        const today = new Date(todayStr);
+        const overdueTasks = allTasks.filter(task => {
+            if (!task.scheduledDate || task.status === 'DONE') return false;
+            const scheduledDate = new Date(task.scheduledDate);
+            return scheduledDate < today;
+        });
+
+        // Combine and deduplicate
+        const combined = [...(todayTasks || []), ...overdueTasks];
+        const uniqueTasks = Array.from(new Map(combined.map(task => [task.id, task])).values());
+
+        // Sort: overdue first, then by scheduled date
+        return uniqueTasks.sort((a, b) => {
+            const aDate = new Date(a.scheduledDate || '');
+            const bDate = new Date(b.scheduledDate || '');
+            const today = new Date(todayStr);
+
+            const aOverdue = aDate < today && a.status !== 'DONE';
+            const bOverdue = bDate < today && b.status !== 'DONE';
+
+            if (aOverdue && !bOverdue) return -1;
+            if (!aOverdue && bOverdue) return 1;
+            return aDate.getTime() - bDate.getTime();
+        });
+    }, [todayTasks, allTasks, todayStr]);
+
+    const isOverdue = (task: any) => {
+        if (!task.scheduledDate || task.status === 'DONE') return false;
+        const scheduledDate = new Date(task.scheduledDate);
+        const today = new Date(todayStr);
+        return scheduledDate < today;
+    };
 
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskPriority, setNewTaskPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
@@ -70,7 +108,7 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-8">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -150,7 +188,7 @@ export default function Dashboard() {
                                 </div>
 
                                 {/* Task List */}
-                                <div className="space-y-2 flex-1 overflow-y-auto max-h-[400px]">
+                                <div className="space-y-2 flex-1 overflow-y-auto max-h-[600px]">
                                     {!tasks || tasks.length === 0 ? (
                                         <div className="text-center py-8 text-muted-foreground text-sm">
                                             No tasks for today. Add one to get started!
@@ -159,52 +197,72 @@ export default function Dashboard() {
                                         tasks.map(task => (
                                             <div
                                                 key={task.id}
-                                                className="group flex items-center gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors border border-transparent hover:border-border"
+                                                className={cn(
+                                                    "group flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-colors border",
+                                                    isOverdue(task) ? "border-red-500/30 bg-red-500/5" : "border-transparent hover:border-border"
+                                                )}
                                             >
                                                 <button
                                                     onClick={() => handleToggleTask(task.id, task.status)}
                                                     disabled={updateTaskStatus.isPending}
+                                                    className="flex-shrink-0"
                                                 >
                                                     {task.status === 'DONE' ? (
-                                                        <CheckCircle className="w-4 h-4 text-primary" />
+                                                        <CheckCircle className="w-5 h-5 text-primary" />
                                                     ) : (
-                                                        <Circle className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                                        <Circle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                                                     )}
                                                 </button>
-                                                <span className={cn(
-                                                    "text-sm truncate flex-1",
-                                                    task.status === 'DONE' && "text-muted-foreground line-through"
-                                                )}>
-                                                    {task.title}
-                                                </span>
-                                                {task.project ? (
+
+                                                <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                                                     <span
-                                                        className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                                                        style={{
-                                                            backgroundColor: `${task.project.color}20`,
-                                                            color: task.project.color,
-                                                            border: `1px solid ${task.project.color}40`
-                                                        }}
+                                                        className={cn(
+                                                            "text-sm font-medium truncate max-w-md",
+                                                            task.status === 'DONE' && "text-muted-foreground line-through"
+                                                        )}
+                                                        title={task.title}
                                                     >
-                                                        {task.project.name}
+                                                        {task.title}
                                                     </span>
-                                                ) : (
-                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
-                                                        Unassigned
+
+                                                    {isOverdue(task) && (
+                                                        <span title="Overdue">
+                                                            <AlertCircle className="w-4 h-4 text-red-500" />
+                                                        </span>
+                                                    )}
+                                                    {task.project ? (
+                                                        <span
+                                                            className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                                                            style={{
+                                                                backgroundColor: `${task.project.color}20`,
+                                                                color: task.project.color,
+                                                                border: `1px solid ${task.project.color}40`
+                                                            }}
+                                                        >
+                                                            {task.project.name}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
+                                                            Unassigned
+                                                        </span>
+                                                    )}
+                                                    <span title={`Priority: ${task.priority}`}>
+                                                        <Flag
+                                                            className={cn(
+                                                                "w-4 h-4 fill-current",
+                                                                task.priority === 'HIGH' && "text-red-500",
+                                                                task.priority === 'MEDIUM' && "text-yellow-500",
+                                                                task.priority === 'LOW' && "text-blue-500"
+                                                            )}
+                                                        />
                                                     </span>
-                                                )}
-                                                <Flag className={cn(
-                                                    "w-3 h-3 fill-current",
-                                                    task.priority === 'HIGH' && "text-red-500",
-                                                    task.priority === 'MEDIUM' && "text-yellow-500",
-                                                    task.priority === 'LOW' && "text-blue-500"
-                                                )} />
+                                                </div>
+
                                                 <button
                                                     onClick={() => setTaskToDelete(task.id)}
-                                                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-all"
-                                                    title="Delete Task"
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive flex-shrink-0"
                                                 >
-                                                    <Trash2 className="w-3 h-3" />
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         ))
