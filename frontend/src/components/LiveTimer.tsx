@@ -26,8 +26,8 @@ export function LiveTimer() {
 
     // Fetch tasks - same logic as Dashboard (today + overdue)
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const { data: todayTasks } = useTasks({ scheduledDate: todayStr });
-    const { data: allTasks } = useTasks({});
+    const { data: todayTasks, refetch: refetchTodayTasks } = useTasks({ scheduledDate: todayStr });
+    const { data: allTasks, refetch: refetchAllTasks } = useTasks({});
 
     // Combine today's tasks with overdue tasks (same as Dashboard)
     const tasks = React.useMemo(() => {
@@ -65,6 +65,15 @@ export function LiveTimer() {
     const [isDragOver, setIsDragOver] = useState(false);
     const [notes, setNotes] = useState('');
     const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
+    const [taskUpdateCounter, setTaskUpdateCounter] = useState(0);
+
+    // Force refetch when tasks are updated
+    useEffect(() => {
+        if (taskUpdateCounter > 0) {
+            refetchTodayTasks();
+            refetchAllTasks();
+        }
+    }, [taskUpdateCounter, refetchTodayTasks, refetchAllTasks]);
 
     // Pomodoro state
     const [isPomodoro, setIsPomodoro] = useState(false);
@@ -307,21 +316,24 @@ export function LiveTimer() {
                                         {droppedTaskIds.length > 0 ? (
                                             <div className="space-y-2">
                                                 {droppedTaskIds.map(taskId => {
+                                                    // Always get fresh task data from the tasks array
                                                     const task = tasks?.find(t => t.id === taskId);
                                                     if (!task) return null;
                                                     const isCompleted = task.status === 'DONE';
+
                                                     return (
                                                         <div
-                                                            key={task.id}
+                                                            key={`${task.id}-${task.status}-${task.updatedAt || Date.now()}`}
                                                             className={cn(
-                                                                "flex items-center gap-2 p-2 rounded text-sm group transition-colors",
+                                                                "flex items-center gap-2 p-2 rounded text-sm group transition-all duration-200",
                                                                 isCompleted ? "bg-muted/50" : "bg-accent/50"
                                                             )}
                                                         >
                                                             <button
-                                                                onClick={() => {
+                                                                onClick={async () => {
                                                                     const newStatus = isCompleted ? 'TODO' : 'DONE';
-                                                                    updateTaskStatus.mutate({ id: task.id, status: newStatus });
+                                                                    await updateTaskStatus.mutateAsync({ id: task.id, status: newStatus });
+                                                                    setTaskUpdateCounter(prev => prev + 1);
                                                                 }}
                                                                 className="flex-shrink-0"
                                                                 disabled={updateTaskStatus.isPending}
@@ -334,7 +346,7 @@ export function LiveTimer() {
                                                             </button>
                                                             <span
                                                                 className={cn(
-                                                                    "truncate flex-1",
+                                                                    "truncate flex-1 transition-all duration-200",
                                                                     isCompleted && "text-muted-foreground line-through"
                                                                 )}
                                                                 title={task.title}
@@ -402,42 +414,56 @@ export function LiveTimer() {
                                                 Tasks in this session:
                                             </div>
                                             <div className="space-y-1">
-                                                {activeTimer.tasks.map(task => (
-                                                    <div
-                                                        key={task.id}
-                                                        className="flex items-center gap-2 p-1.5 rounded hover:bg-accent/50 transition-colors cursor-pointer"
-                                                        onClick={() => {
-                                                            const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
-                                                            updateTaskStatus.mutate({ id: task.id, status: newStatus });
-                                                            if (newStatus) {
-                                                                const priority = (task as any).priority || 'MEDIUM';
+                                                {activeTimer.tasks.map(timerTask => {
+                                                    // Find the most up-to-date task object from our fresh queries
+                                                    const task = tasks?.find(t => t.id === timerTask.id) ||
+                                                        allTasks?.find(t => t.id === timerTask.id) ||
+                                                        timerTask;
 
-                                                                // Play sound
-                                                                playCompletionSound(priority);
+                                                    const isCompleted = task.status === 'DONE';
 
-                                                                const config = {
-                                                                    HIGH: { particleCount: 200, spread: 100, startVelocity: 45, origin: { y: 0.6 } },
-                                                                    MEDIUM: { particleCount: 100, spread: 70, startVelocity: 30, origin: { y: 0.6 } },
-                                                                    LOW: { particleCount: 50, spread: 40, startVelocity: 20, origin: { y: 0.6 } }
-                                                                };
-                                                                // @ts-ignore
-                                                                confetti(config[priority] || config.MEDIUM);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {task.status === 'DONE' ? (
-                                                            <CheckCircle className="w-4 h-4 text-primary" />
-                                                        ) : (
-                                                            <Circle className="w-4 h-4 text-muted-foreground" />
-                                                        )}
-                                                        <span className={cn(
-                                                            "text-sm truncate flex-1",
-                                                            task.status === 'DONE' && "text-muted-foreground line-through"
-                                                        )}>
-                                                            {task.title}
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                                    return (
+                                                        <div
+                                                            key={`${task.id}-${task.status}-${task.updatedAt || Date.now()}`}
+                                                            className={cn(
+                                                                "flex items-center gap-2 p-1.5 rounded hover:bg-accent/50 transition-all duration-200 cursor-pointer",
+                                                                isCompleted && "bg-muted/50"
+                                                            )}
+                                                            onClick={async () => {
+                                                                const newStatus = isCompleted ? 'TODO' : 'DONE';
+                                                                await updateTaskStatus.mutateAsync({ id: task.id, status: newStatus });
+                                                                setTaskUpdateCounter(prev => prev + 1);
+
+                                                                if (newStatus === 'DONE') {
+                                                                    const priority = (task as any).priority || 'MEDIUM';
+
+                                                                    // Play sound
+                                                                    playCompletionSound(priority);
+
+                                                                    const config = {
+                                                                        HIGH: { particleCount: 200, spread: 100, startVelocity: 45, origin: { y: 0.6 } },
+                                                                        MEDIUM: { particleCount: 100, spread: 70, startVelocity: 30, origin: { y: 0.6 } },
+                                                                        LOW: { particleCount: 50, spread: 40, startVelocity: 20, origin: { y: 0.6 } }
+                                                                    };
+                                                                    // @ts-ignore
+                                                                    confetti(config[priority] || config.MEDIUM);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {isCompleted ? (
+                                                                <CheckCircle className="w-4 h-4 text-primary" />
+                                                            ) : (
+                                                                <Circle className="w-4 h-4 text-muted-foreground" />
+                                                            )}
+                                                            <span className={cn(
+                                                                "text-sm truncate flex-1 transition-all duration-200",
+                                                                isCompleted && "text-muted-foreground line-through"
+                                                            )}>
+                                                                {task.title}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
