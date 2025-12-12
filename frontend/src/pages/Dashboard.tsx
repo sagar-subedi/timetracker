@@ -35,21 +35,37 @@ export default function Dashboard() {
             return scheduledDate < today;
         });
 
+        // Include tasks completed today (even if scheduled for past/future)
+        const completedTodayTasks = allTasks.filter(task => {
+            if (task.status !== 'DONE') return false;
+            const updatedAt = new Date(task.updatedAt);
+            return format(updatedAt, 'yyyy-MM-dd') === todayStr;
+        });
+
         // Combine and deduplicate
-        const combined = [...(todayTasks || []), ...overdueTasks];
+        const combined = [...(todayTasks || []), ...overdueTasks, ...completedTodayTasks];
         const uniqueTasks = Array.from(new Map(combined.map(task => [task.id, task])).values());
 
-        // Sort: overdue first, then by scheduled date
+        // Sort: overdue first, then by scheduled date, completed last
         return uniqueTasks.sort((a, b) => {
+            // 1. Completed tasks at the bottom
+            const aCompleted = a.status === 'DONE';
+            const bCompleted = b.status === 'DONE';
+            if (aCompleted && !bCompleted) return 1;
+            if (!aCompleted && bCompleted) return -1;
+
             const aDate = new Date(a.scheduledDate || '');
             const bDate = new Date(b.scheduledDate || '');
             const today = new Date(todayStr);
 
-            const aOverdue = aDate < today && a.status !== 'DONE';
-            const bOverdue = bDate < today && b.status !== 'DONE';
+            // 2. Overdue tasks at the top
+            const aOverdue = aDate < today;
+            const bOverdue = bDate < today;
 
             if (aOverdue && !bOverdue) return -1;
             if (!aOverdue && bOverdue) return 1;
+
+            // 3. Sort by time
             return aDate.getTime() - bDate.getTime();
         });
     }, [todayTasks, allTasks, todayStr]);
